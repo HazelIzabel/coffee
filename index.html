@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Coffee Log">
+<title>Coffee Log</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%23241A12'/%3E%3Cellipse cx='90' cy='90' rx='52' ry='66' fill='%23B37F2B'/%3E%3Cpath d='M90 30 Q78 90 90 150 Q102 90 90 30' fill='%23241A12'/%3E%3C/svg%3E">
+<style>
+/* ============ tokens ============ */
+:root{
+  --ink:#241A12; --paper:#EEEFE7; --card:#FFFFFF;
+  --line:#D8D5C9; --muted:#8A8474;
+  --roast:#586B4E; --brew:#B37F2B;
+  --accent:var(--roast);
+  --danger:#A4442E; --ok:#3E6B45;
+  --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --ink:#EDE8DE; --paper:#191410; --card:#241E18;
+         --line:#3A322A; --muted:#9A9284; }
+}
+*{box-sizing:border-box; margin:0}
+html{ -webkit-text-size-adjust:100% }
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  background:var(--paper); color:var(--ink);
+  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+}
+.mode-brew{ --accent:var(--brew) }
+
+/* ============ header ============ */
+header{
+  position:sticky; top:0; z-index:10;
+  background:color-mix(in srgb, var(--paper) 88%, transparent);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  border-bottom:1px solid var(--line);
+}
+.toggle{
+  display:flex; border:1.5px solid var(--ink); border-radius:12px; overflow:hidden;
+}
+.toggle button{
+  flex:1; padding:12px 0; font:inherit; font-weight:700; letter-spacing:.14em;
+  font-size:13px; text-transform:uppercase; border:0; background:transparent;
+  color:var(--ink); cursor:pointer;
+}
+.toggle button.on{ background:var(--accent); color:#fff }
+.statusbar{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:8px; font-size:12px; color:var(--muted);
+}
+#syncChip{ display:inline-flex; align-items:center; gap:5px; border:0; background:none;
+  font:inherit; color:var(--muted); padding:4px 0; cursor:pointer }
+#syncChip .dot{ width:8px; height:8px; border-radius:50%; background:var(--ok) }
+#syncChip.pending .dot{ background:var(--brew) }
+#syncChip.err .dot{ background:var(--danger) }
+#gear{ background:none; border:0; font-size:16px; padding:4px; cursor:pointer; color:var(--muted) }
+
+/* ============ form ============ */
+main{ padding:14px 16px; max-width:520px; margin:0 auto }
+.banner{
+  background:var(--danger); color:#fff; border-radius:var(--radius);
+  padding:12px 14px; font-size:14px; margin-bottom:14px; display:none;
+}
+.banner.show{ display:block }
+fieldset{ border:0; padding:0; margin:0 0 6px }
+.field{ margin-bottom:14px }
+label.top{
+  display:block; font-size:12px; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:5px;
+}
+label.top a{ color:var(--accent); text-decoration:none; font-weight:700 }
+input[type=text],input[type=number],textarea,select{
+  width:100%; font:inherit; font-size:17px; color:var(--ink);
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:13px 14px; -webkit-appearance:none; appearance:none;
+}
+input:focus-visible,textarea:focus-visible,select:focus-visible,
+button:focus-visible{ outline:2.5px solid var(--accent); outline-offset:1px }
+textarea{ min-height:88px; resize:vertical }
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+.calc{
+  font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:15px;
+  background:transparent; border:1px dashed var(--line); border-radius:var(--radius);
+  padding:12px 14px; color:var(--muted); min-height:46px; display:flex; align-items:center;
+}
+.calc b{ color:var(--ink); font-weight:600 }
+
+/* chips (P1-P5, Y/N) */
+.chips{ display:flex; gap:8px; flex-wrap:wrap }
+.chips button{
+  font:inherit; font-size:15px; font-weight:600; padding:11px 0; flex:1; min-width:52px;
+  border:1px solid var(--line); background:var(--card); color:var(--ink);
+  border-radius:var(--radius); cursor:pointer;
+}
+.chips button.on{ background:var(--accent); border-color:var(--accent); color:#fff }
+
+/* bean-dot ratings — the signature */
+.rate{ display:flex; align-items:center; justify-content:space-between;
+  padding:9px 0; border-bottom:1px solid var(--line) }
+.rate:last-child{ border-bottom:0 }
+.rate .lbl{ font-size:15px }
+.rate .lbl small{ color:var(--muted); font-size:11px; margin-left:4px }
+.dots{ display:flex; gap:9px }
+.dots button{
+  width:34px; height:34px; border-radius:50%; border:1.5px solid var(--line);
+  background:var(--card); cursor:pointer; padding:0;
+}
+.dots button.fill{ background:var(--accent); border-color:var(--accent) }
+
+/* sections */
+section.card{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:4px 14px; margin-bottom:14px;
+}
+details{ border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--card); margin-bottom:14px }
+details summary{
+  list-style:none; cursor:pointer; padding:14px; font-weight:700; font-size:14px;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+  display:flex; justify-content:space-between; align-items:center;
+}
+details summary::after{ content:"+"; font-size:20px; color:var(--accent) }
+details[open] summary::after{ content:"–" }
+details .inner{ padding:0 14px 10px }
+h2.sect{
+  font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--accent); margin:20px 0 10px;
+}
+
+/* save bar */
+.savebar{
+  position:fixed; left:0; right:0; bottom:0; z-index:10;
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:color-mix(in srgb, var(--paper) 88%, transparent);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);
+}
+.savebar button{
+  width:100%; max-width:520px; margin:0 auto; display:block;
+  font:inherit; font-size:17px; font-weight:700; letter-spacing:.04em;
+  padding:16px; border:0; border-radius:var(--radius);
+  background:var(--accent); color:#fff; cursor:pointer;
+}
+.toast{
+  position:fixed; left:50%; bottom:calc(90px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(20px); opacity:0; pointer-events:none;
+  background:var(--ink); color:var(--paper); font-size:14px; font-weight:600;
+  padding:11px 18px; border-radius:99px; transition:all .25s; z-index:20;
+  white-space:nowrap;
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
+@media (prefers-reduced-motion:reduce){ .toast{ transition:none } }
+
+/* settings sheet */
+#settings{ display:none; }
+#settings.show{ display:block }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="toggle" role="tablist">
+    <button id="tabRoast" class="on" onclick="setMode('roast')">Roast</button>
+    <button id="tabBrew" onclick="setMode('espresso')">Brew</button>
+  </div>
+  <div class="statusbar">
+    <button id="syncChip" onclick="syncQueue(true)"><span class="dot"></span><span id="syncText">Synced</span></button>
+    <button id="gear" onclick="toggleSettings()" aria-label="Settings">⚙︎</button>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="setupBanner">
+    App isn't connected to your sheet yet. Tap ⚙︎ and paste your Apps Script URL.
+  </div>
+
+  <!-- settings -->
+  <section class="card" id="settings">
+    <div class="field" style="margin-top:12px">
+      <label class="top" for="cfgUrl">Apps Script web app URL</label>
+      <input type="text" id="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec">
+    </div>
+    <div class="field">
+      <button class="chips-btn" style="font:inherit;font-weight:700;padding:12px 18px;border:0;border-radius:12px;background:var(--accent);color:#fff"
+        onclick="saveCfg()">Save & refresh bean list</button>
+    </div>
+  </section>
+
+  <!-- ================= ROAST FORM ================= -->
+  <form id="roastForm" autocomplete="off" onsubmit="return false">
+    <div class="field"><label class="top" for="r_date">Roast date</label>
+      <input type="text" id="r_date" inputmode="numeric" placeholder="7/5 or 7/5/2026"></div>
+
+    <div class="field"><label class="top" for="r_bean">Bean</label>
+      <select id="r_bean"></select>
+      <input type="text" id="r_beanOther" placeholder="Bean name" style="display:none;margin-top:8px"></div>
+
+    <div class="field"><label class="top" for="r_variant">Variant <span style="text-transform:none;font-weight:400">(optional — for 2nd batch same day)</span></label>
+      <input type="text" id="r_variant" placeholder="B, light, etc."></div>
+
+    <div class="field"><label class="top">Lot number</label>
+      <div class="calc" id="r_lot"><b>—</b></div></div>
+
+    <div class="row2">
+      <div class="field"><label class="top" for="r_startW">Start weight (g)</label>
+        <input type="number" id="r_startW" inputmode="decimal" step="0.1" placeholder="113.0"></div>
+      <div class="field"><label class="top" for="r_preheat">Preheat P1 (s)</label>
+        <input type="number" id="r_preheat" inputmode="numeric" placeholder="90"></div>
+    </div>
+
+    <div class="field">
+      <label class="top">Behmor profile
+        <a href="https://library.sweetmarias.com/behmor-quick-start-guide-and-cheat-sheets/" target="_blank" rel="noopener">?</a></label>
+      <div class="chips" id="r_profile">
+        <button type="button">P1</button><button type="button">P2</button>
+        <button type="button">P3</button><button type="button">P4</button>
+        <button type="button">P5</button>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label class="top" for="r_fc">First crack (M:SS)</label>
+        <input type="text" id="r_fc" inputmode="numeric" placeholder="9:30"></div>
+      <div class="field"><label class="top" for="r_total">Total roast (M:SS)</label>
+        <input type="text" id="r_total" inputmode="numeric" placeholder="10:45"></div>
+    </div>
+
+    <div class="field"><label class="top">Development time</label>
+      <div class="calc" id="r_dev"><b>—</b></div></div>
+
+    <div class="row2">
+      <div class="field"><label class="top" for="r_endW">End weight (g)</label>
+        <input type="number" id="r_endW" inputmode="decimal" step="0.1" placeholder="96.4"></div>
+      <div class="field"><label class="top">Weight loss</label>
+        <div class="calc" id="r_loss"><b>—</b></div></div>
+    </div>
+
+    <div class="field">
+      <label class="top" for="r_level">Roast level (Agtron)
+        <a href="https://www.coffeereview.com/roast-definitions/" target="_blank" rel="noopener">?</a></label>
+      <input type="number" id="r_level" inputmode="numeric" placeholder="45"></div>
+
+    <div class="field"><label class="top" for="r_notes">Notes</label>
+      <textarea id="r_notes" placeholder="Crack behavior, tipping, smells…"></textarea></div>
+
+    <div id="r_custom"></div>
+  </form>
+
+  <!-- ================= ESPRESSO FORM ================= -->
+  <form id="brewForm" autocomplete="off" style="display:none" onsubmit="return false">
+    <div class="field"><label class="top" for="e_date">Brew date</label>
+      <input type="text" id="e_date" inputmode="numeric" placeholder="7/5 or 7/5/2026"></div>
+
+    <div class="field"><label class="top" for="e_bean">Bean / lot</label>
+      <select id="e_bean"></select>
+      <input type="text" id="e_beanOther" placeholder="Bean or blend name" style="display:none;margin-top:8px"></div>
+
+    <div class="field"><label class="top" for="e_source">Bean source</label>
+      <input type="text" id="e_source" placeholder="Home roast / roaster name"></div>
+
+    <div class="field"><label class="top">Pourover?</label>
+      <div class="chips yn" id="e_pourover">
+        <button type="button">Yes</button><button type="button">No</button>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label class="top" for="e_grind">Grind level</label>
+        <input type="number" id="e_grind" inputmode="numeric" placeholder="8"></div>
+      <div class="field"><label class="top" for="e_dose">Bean weight (g)</label>
+        <input type="number" id="e_dose" inputmode="decimal" step="0.1" placeholder="18.0"></div>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label class="top" for="e_pre">Pre-infusion (s)</label>
+        <input type="number" id="e_pre" inputmode="numeric" placeholder="8"></div>
+      <div class="field"><label class="top" for="e_time">Brew time (s)</label>
+        <input type="number" id="e_time" inputmode="numeric" placeholder="28"></div>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label class="top" for="e_yield">Yield (g)</label>
+        <input type="number" id="e_yield" inputmode="decimal" step="0.1" placeholder="36.0"></div>
+      <div class="field"><label class="top">Ratio</label>
+        <div class="calc" id="e_ratio"><b>—</b></div></div>
+    </div>
+
+    <div class="field"><label class="top">Days rested</label>
+      <div class="calc" id="e_rested"><b>—</b></div></div>
+
+    <h2 class="sect">Primary attributes</h2>
+    <section class="card" id="e_primary"></section>
+
+    <details id="e_flavorWrap">
+      <summary>Flavor profile</summary>
+      <div class="inner" id="e_flavor"></div>
+    </details>
+
+    <div class="field"><label class="top" for="e_notes">Notes</label>
+      <textarea id="e_notes" placeholder="What stood out…"></textarea></div>
+
+    <div id="e_custom"></div>
+
+    <h2 class="sect">Hardware</h2>
+    <div class="field"><label class="top" for="e_basket">Basket</label>
+      <input type="text" id="e_basket" placeholder="Basket"></div>
+    <div class="row2">
+      <div class="field"><label class="top" for="e_spring">Spring (psi)</label>
+        <input type="number" id="e_spring" inputmode="decimal" placeholder="9"></div>
+      <div class="field"><label class="top">Puck screen?</label>
+        <div class="chips yn" id="e_screen">
+          <button type="button">Yes</button><button type="button">No</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</main>
+
+<div class="savebar"><button id="saveBtn" onclick="save()">Save roast</button></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   CONFIG — paste your Apps Script URL here during setup,
+   or set it from the ⚙︎ panel in the app (either works).
+   ========================================================= */
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJ0-9zao4w1XP5QIDdzEqob8O3Jb74STy5SdpW16-w9Y66bA5QyZXwvQDIt2FGPhWTyA/exec";
+
+/* ---------- state ---------- */
+var mode = 'roast';
+var LS = {
+  get: function(k,d){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } },
+  set: function(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)) }catch(e){} }
+};
+function scriptUrl(){
+  var o = LS.get('cfgUrl','');
+  if (o) return o;
+  return SCRIPT_URL.indexOf('http')===0 ? SCRIPT_URL : '';
+}
+
+/* ---------- rating definitions ---------- */
+var PRIMARY = [
+  ['likeability','Likeability','L'], ['crema','Crema','T'], ['acidity','Acidity','T'],
+  ['bitterness','Bitterness','T'], ['body','Body','T'],
+  ['roastiness','Roastiness','T'], ['medicinal','Medicinal','T']
+];
+var FLAVOR = [
+  ['floral','Floral'], ['honey','Honey'], ['sugars','Sugars'], ['caramel','Caramel'],
+  ['fruits','Fruits'], ['citrus','Citrus'], ['berry','Berry'], ['cocoa','Cocoa'],
+  ['nuts','Nuts'], ['rustic','Rustic'], ['spice','Spice']
+];
+var ratings = {}; // key -> 1..5 or undefined
+
+function rateRow(key,label,tag){
+  var row = document.createElement('div'); row.className='rate';
+  var lbl = document.createElement('span'); lbl.className='lbl';
+  lbl.innerHTML = label + (tag ? ' <small>('+tag+')</small>' : ' <small>(T)</small>');
+  var dots = document.createElement('div'); dots.className='dots';
+  for (var i=1;i<=5;i++){
+    (function(n){
+      var b=document.createElement('button'); b.type='button';
+      b.setAttribute('aria-label', label+' '+n);
+      b.onclick=function(){
+        ratings[key] = (ratings[key]===n) ? undefined : n;
+        paintDots(dots,ratings[key]);
+      };
+      dots.appendChild(b);
+    })(i);
+  }
+  row.appendChild(lbl); row.appendChild(dots);
+  return row;
+}
+function paintDots(dots,val){
+  var bs=dots.querySelectorAll('button');
+  for (var i=0;i<bs.length;i++) bs[i].className = (val && i<val) ? 'fill' : '';
+}
+function paintAllDots(){
+  var rows=document.querySelectorAll('#e_primary .rate, #e_flavor .rate');
+  var keys=PRIMARY.map(function(p){return p[0]}).concat(FLAVOR.map(function(f){return f[0]}));
+  rows.forEach(function(r,i){ paintDots(r.querySelector('.dots'), ratings[keys[i]]) });
+}
+PRIMARY.forEach(function(p){ document.getElementById('e_primary').appendChild(rateRow(p[0],p[1],p[2])) });
+FLAVOR.forEach(function(f){ document.getElementById('e_flavor').appendChild(rateRow(f[0],f[1],'T')) });
+
+/* ---------- chips ---------- */
+function wireChips(id){
+  var box=document.getElementById(id);
+  box.querySelectorAll('button').forEach(function(b){
+    b.onclick=function(){
+      box.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});
+      b.classList.add('on');
+    };
+  });
+}
+['r_profile','e_pourover','e_screen'].forEach(wireChips);
+function chipVal(id){ var b=document.querySelector('#'+id+' button.on'); return b?b.textContent:'' }
+function setChip(id,val){
+  document.querySelectorAll('#'+id+' button').forEach(function(b){
+    b.classList.toggle('on', b.textContent===val);
+  });
+}
+
+/* ---------- helpers ---------- */
+function $(id){ return document.getElementById(id) }
+function todayStr(){ var d=new Date(); return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear() }
+function normDate(s){
+  s=(s||'').trim(); if(!s) return '';
+  var p=s.split('/');
+  if (p.length===2) p.push(new Date().getFullYear());
+  if (p.length===3){
+    if (String(p[2]).length===2) p[2]='20'+p[2];
+    return parseInt(p[0],10)+'/'+('0'+parseInt(p[1],10)).slice(-2)+'/'+p[2];
+  }
+  return s;
+}
+function shortDate(s){ // m/d for lot numbers
+  var p=normDate(s).split('/');
+  return p.length===3 ? parseInt(p[0],10)+'/'+parseInt(p[1],10) : s;
+}
+function normTime(s){ // "930" -> "9:30"
+  s=(s||'').trim(); if(!s) return '';
+  if (s.indexOf(':')>-1) return s;
+  if (/^\d{3,4}$/.test(s)) return parseInt(s.slice(0,-2),10)+':'+s.slice(-2);
+  return s;
+}
+function toSec(t){ var p=normTime(t).split(':'); return p.length===2 ? (+p[0])*60+(+p[1]) : NaN }
+function fromSec(x){ if(!isFinite(x)||x<0) return ''; return Math.floor(x/60)+':'+('0'+Math.round(x%60)).slice(-2) }
+function toast(msg){
+  var t=$('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show')},2200);
+}
+
+/* ---------- bean dropdowns ---------- */
+function serverData(){ return LS.get('serverData',{beans:[],lots:[],custom:{roast:[],espresso:[]}}) }
+function localLots(){ return LS.get('localLots',[]) }
+
+function buildBeanSelects(){
+  var sd=serverData();
+  var lots = localLots().concat(sd.lots.filter(function(l){
+    return !localLots().some(function(x){return x.lot===l.lot});
+  }));
+  // roast form: beans only
+  var r=$('r_bean'); r.innerHTML='';
+  sd.beans.forEach(function(b){
+    var o=document.createElement('option'); o.value=b.name; o.textContent=b.name; r.appendChild(o);
+  });
+  r.appendChild(new Option('Other…','__other'));
+  // espresso form: lots first, then beans, then other
+  var e=$('e_bean'); e.innerHTML='';
+  if (lots.length){
+    var g1=document.createElement('optgroup'); g1.label='My roasts';
+    lots.slice(0,25).forEach(function(l){ g1.appendChild(new Option(l.lot,'lot:'+l.lot)) });
+    e.appendChild(g1);
+  }
+  if (sd.beans.length){
+    var g2=document.createElement('optgroup'); g2.label='Beans';
+    sd.beans.forEach(function(b){ g2.appendChild(new Option(b.name,b.name)) });
+    e.appendChild(g2);
+  }
+  e.appendChild(new Option('Other…','__other'));
+}
+function wireOther(selId,inputId){
+  $(selId).addEventListener('change',function(){
+    $(inputId).style.display = this.value==='__other' ? 'block' : 'none';
+    if (selId==='e_bean') onBrewBeanChange();
+    if (selId==='r_bean') calcLot();
+  });
+}
+wireOther('r_bean','r_beanOther'); wireOther('e_bean','e_beanOther');
+
+function beanVal(selId,inputId){
+  var v=$(selId).value;
+  if (v==='__other') return $(inputId).value.trim();
+  return v.indexOf('lot:')===0 ? v.slice(4) : v;
+}
+function lotInfo(lot){
+  var all=localLots().concat(serverData().lots);
+  for (var i=0;i<all.length;i++) if (all[i].lot===lot) return all[i];
+  return null;
+}
+function onBrewBeanChange(){
+  var v=$('e_bean').value;
+  if (v.indexOf('lot:')===0){ $('e_source').value='Home roast'; }
+  calcRested();
+}
+$('e_date').addEventListener('input',calcRested);
+
+/* ---------- calculated fields ---------- */
+function calcLot(){
+  var bean=beanVal('r_bean','r_beanOther');
+  var d=shortDate($('r_date').value||todayStr());
+  var v=$('r_variant').value.trim();
+  var lot = bean ? bean+' '+d+(v?' '+v:'') : '—';
+  $('r_lot').innerHTML='<b>'+lot+'</b>';
+  return lot;
+}
+function calcDev(){
+  var d=toSec($('r_total').value)-toSec($('r_fc').value);
+  $('r_dev').innerHTML='<b>'+(isFinite(d)&&d>=0?fromSec(d):'—')+'</b>';
+  return isFinite(d)&&d>=0?fromSec(d):'';
+}
+function calcLoss(){
+  var s=parseFloat($('r_startW').value), e=parseFloat($('r_endW').value);
+  var ok=isFinite(s)&&isFinite(e)&&s>0;
+  var pct=ok?((s-e)/s*100).toFixed(1):null;
+  $('r_loss').innerHTML='<b>'+(ok?pct+'%':'—')+'</b>';
+  return ok?pct:'';
+}
+function calcRatio(){
+  var d=parseFloat($('e_dose').value), y=parseFloat($('e_yield').value);
+  var ok=isFinite(d)&&isFinite(y)&&d>0;
+  var r=ok?'1:'+(y/d).toFixed(1):null;
+  $('e_ratio').innerHTML='<b>'+(ok?r:'—')+'</b>';
+  return ok?r:'';
+}
+function calcRested(){
+  var v=$('e_bean').value, out='';
+  if (v.indexOf('lot:')===0){
+    var info=lotInfo(v.slice(4));
+    if (info&&info.roastDate){
+      var rd=new Date(normDate(info.roastDate)), bd=new Date(normDate($('e_date').value||todayStr()));
+      var days=Math.round((bd-rd)/86400000);
+      if (isFinite(days)&&days>=0) out=String(days);
+    }
+  }
+  $('e_rested').innerHTML='<b>'+(out||'—')+'</b>';
+  return out;
+}
+['r_bean','r_beanOther','r_date','r_variant'].forEach(function(id){ $(id).addEventListener('input',calcLot) });
+['r_fc','r_total'].forEach(function(id){ $(id).addEventListener('input',calcDev) });
+['r_startW','r_endW'].forEach(function(id){ $(id).addEventListener('input',calcLoss) });
+['e_dose','e_yield'].forEach(function(id){ $(id).addEventListener('input',calcRatio) });
+['r_fc','r_total'].forEach(function(id){
+  $(id).addEventListener('blur',function(){ this.value=normTime(this.value); calcDev(); });
+});
+['r_date','e_date'].forEach(function(id){
+  $(id).addEventListener('blur',function(){ this.value=this.value?normDate(this.value):''; calcLot(); calcRested(); });
+});
+
+/* ---------- custom slots ---------- */
+function buildCustoms(){
+  var sd=serverData();
+  ['roast','espresso'].forEach(function(kind){
+    var wrap=$(kind==='roast'?'r_custom':'e_custom'); wrap.innerHTML='';
+    (sd.custom[kind]||[]).forEach(function(c,i){
+      if (!c.active) return;
+      var d=document.createElement('div'); d.className='field';
+      d.innerHTML='<label class="top" for="'+kind+'_c'+(i+1)+'">'+c.name+'</label>'+
+        '<input type="text" id="'+kind+'_c'+(i+1)+'">';
+      wrap.appendChild(d);
+    });
+  });
+}
+function customVal(kind,i){ var el=$(kind+'_c'+i); return el?el.value.trim():'' }
+
+/* ---------- mode ---------- */
+function setMode(m){
+  mode=m;
+  document.body.classList.toggle('mode-brew', m==='espresso');
+  $('tabRoast').classList.toggle('on', m==='roast');
+  $('tabBrew').classList.toggle('on', m==='espresso');
+  $('roastForm').style.display = m==='roast'?'block':'none';
+  $('brewForm').style.display = m==='espresso'?'block':'none';
+  $('saveBtn').textContent = m==='roast'?'Save roast':'Save shot';
+}
+
+/* ---------- pre-population ---------- */
+function prepopulate(){
+  var lr=LS.get('lastRoast',null);
+  if (lr){
+    if (lr.beanSel){ $('r_bean').value=lr.beanSel; $('r_beanOther').style.display=lr.beanSel==='__other'?'block':'none'; }
+    $('r_beanOther').value=lr.beanOther||'';
+    $('r_variant').value=lr.variant||'';
+    $('r_preheat').value=lr.preheat||'';
+    if (lr.profile) setChip('r_profile',lr.profile);
+    $('r_level').value=lr.roastLevel||'';
+    for (var i=1;i<=4;i++){ var el=$('roast_c'+i); if(el) el.value=lr['custom'+i]||''; }
+  }
+  var le=LS.get('lastEspresso',null);
+  if (le){
+    if (le.beanSel){
+      // only restore if option still exists
+      var opt=$('e_bean').querySelector('option[value="'+le.beanSel.replace(/"/g,'\\"')+'"]');
+      if (opt) $('e_bean').value=le.beanSel;
+      $('e_beanOther').style.display=$('e_bean').value==='__other'?'block':'none';
+    }
+    $('e_beanOther').value=le.beanOther||'';
+    $('e_source').value=le.source||'';
+    if (le.pourover) setChip('e_pourover',le.pourover);
+    $('e_grind').value=le.grind||'';
+    $('e_yield').value=le.yield||'';
+    ratings=le.ratings||{};
+    paintAllDots();
+    $('e_basket').value=le.basket||'';
+    $('e_spring').value=le.spring||'';
+    if (le.puckScreen) setChip('e_screen',le.puckScreen);
+    for (var j=1;j<=4;j++){ var el2=$('espresso_c'+j); if(el2) el2.value=le['custom'+j]||''; }
+  }
+  // always-clear fields stay empty; dates get today's placeholder behavior
+  calcLot(); calcRatio(); calcRested();
+}
+
+/* ---------- save ---------- */
+function save(){
+  var entry;
+  if (mode==='roast'){
+    var bean=beanVal('r_bean','r_beanOther');
+    if (!bean){ toast('Pick a bean first'); return; }
+    var date=normDate($('r_date').value||todayStr());
+    $('r_date').value=date;
+    var lot=calcLot();
+    entry={
+      type:'roast', roastDate:date, bean:bean, variant:$('r_variant').value.trim(), lot:lot,
+      startWeight:$('r_startW').value, preheat:$('r_preheat').value, profile:chipVal('r_profile'),
+      firstCrack:normTime($('r_fc').value), totalRoast:normTime($('r_total').value),
+      development:calcDev(), endWeight:$('r_endW').value, weightLoss:calcLoss(),
+      roastLevel:$('r_level').value, notes:$('r_notes').value.trim(),
+      custom1:customVal('roast',1), custom2:customVal('roast',2),
+      custom3:customVal('roast',3), custom4:customVal('roast',4)
+    };
+    // remember for prepopulation
+    LS.set('lastRoast',{ beanSel:$('r_bean').value, beanOther:$('r_beanOther').value,
+      variant:entry.variant, preheat:entry.preheat, profile:entry.profile,
+      roastLevel:entry.roastLevel, custom1:entry.custom1, custom2:entry.custom2,
+      custom3:entry.custom3, custom4:entry.custom4 });
+    // add lot to local list so it's brewable immediately
+    var ll=localLots(); ll.unshift({lot:lot,bean:bean,roastDate:date});
+    LS.set('localLots',ll.slice(0,40));
+    buildBeanSelects();
+    // clear the always-clear fields
+    ['r_date','r_fc','r_total','r_startW','r_endW','r_notes'].forEach(function(id){$(id).value=''});
+    calcLot(); calcDev(); calcLoss();
+  } else {
+    var bean2=beanVal('e_bean','e_beanOther');
+    if (!bean2){ toast('Pick a bean first'); return; }
+    var date2=normDate($('e_date').value||todayStr());
+    $('e_date').value=date2;
+    entry={
+      type:'espresso', brewDate:date2, bean:bean2, source:$('e_source').value.trim(),
+      pourover:chipVal('e_pourover'), grind:$('e_grind').value, dose:$('e_dose').value,
+      preinfusion:$('e_pre').value, brewTime:$('e_time').value, yield:$('e_yield').value,
+      ratio:calcRatio(), daysRested:calcRested(),
+      likeability:ratings.likeability||'', crema:ratings.crema||'', acidity:ratings.acidity||'',
+      bitterness:ratings.bitterness||'', body:ratings.body||'',
+      roastiness:ratings.roastiness||'', medicinal:ratings.medicinal||'',
+      floral:ratings.floral||'', honey:ratings.honey||'', sugars:ratings.sugars||'',
+      caramel:ratings.caramel||'', fruits:ratings.fruits||'', citrus:ratings.citrus||'',
+      berry:ratings.berry||'', cocoa:ratings.cocoa||'', nuts:ratings.nuts||'',
+      rustic:ratings.rustic||'', spice:ratings.spice||'',
+      notes:$('e_notes').value.trim(), basket:$('e_basket').value.trim(),
+      spring:$('e_spring').value, puckScreen:chipVal('e_screen'),
+      custom1:customVal('espresso',1), custom2:customVal('espresso',2),
+      custom3:customVal('espresso',3), custom4:customVal('espresso',4)
+    };
+    LS.set('lastEspresso',{ beanSel:$('e_bean').value, beanOther:$('e_beanOther').value,
+      source:entry.source, pourover:entry.pourover, grind:entry.grind, yield:entry.yield,
+      ratings:ratings, basket:entry.basket, spring:entry.spring, puckScreen:entry.puckScreen,
+      custom1:entry.custom1, custom2:entry.custom2, custom3:entry.custom3, custom4:entry.custom4 });
+    ['e_date','e_pre','e_time','e_dose','e_notes'].forEach(function(id){$(id).value=''});
+    calcRatio(); calcRested();
+  }
+
+  var q=LS.get('queue',[]); q.push(entry); LS.set('queue',q);
+  toast(mode==='roast' ? 'Roast saved' : 'Shot saved');
+  syncQueue(false);
+}
+
+/* ---------- sync ---------- */
+var syncing=false;
+function setSync(state,text){
+  var chip=$('syncChip');
+  chip.className=state;
+  $('syncText').textContent=text;
+}
+function syncQueue(manual){
+  var url=scriptUrl();
+  var q=LS.get('queue',[]);
+  if (!url){ $('setupBanner').classList.add('show'); if(q.length) setSync('err',q.length+' pending — not connected'); return; }
+  $('setupBanner').classList.remove('show');
+  if (!q.length){ setSync('','Synced'); return; }
+  if (syncing) return;
+  if (!navigator.onLine){ setSync('pending',q.length+' pending — offline'); return; }
+
+  syncing=true; setSync('pending','Syncing '+q.length+'…');
+  (function next(){
+    var q2=LS.get('queue',[]);
+    if (!q2.length){ syncing=false; setSync('','Synced'); return; }
+    fetch(url,{ method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(q2[0]) })
+      .then(function(r){ return r.json() })
+      .then(function(j){
+        if (j && j.ok){ q2.shift(); LS.set('queue',q2); next(); }
+        else throw new Error(j&&j.error||'Server said no');
+      })
+      .catch(function(err){
+        syncing=false;
+        setSync('err',q2.length+' pending — tap to retry');
+        if (manual) toast('Sync failed: '+err.message);
+      });
+  })();
+}
+window.addEventListener('online',function(){ syncQueue(false) });
+
+/* ---------- server refresh ---------- */
+function refreshServerData(){
+  var url=scriptUrl(); if(!url) return;
+  fetch(url).then(function(r){return r.json()}).then(function(j){
+    if (j && j.ok){
+      LS.set('serverData',{beans:j.beans||[],lots:j.lots||[],custom:j.custom||{roast:[],espresso:[]}});
+      buildBeanSelects(); buildCustoms(); prepopulate();
+    }
+  }).catch(function(){ /* offline is fine; cached data stands */ });
+}
+
+/* ---------- settings ---------- */
+function toggleSettings(){
+  var s=$('settings'); s.classList.toggle('show');
+  $('cfgUrl').value = LS.get('cfgUrl','') || (SCRIPT_URL.indexOf('http')===0?SCRIPT_URL:'');
+}
+function saveCfg(){
+  var v=$('cfgUrl').value.trim();
+  LS.set('cfgUrl',v);
+  $('settings').classList.remove('show');
+  toast('Saved');
+  refreshServerData(); syncQueue(false);
+}
+
+/* ---------- init ---------- */
+buildBeanSelects(); buildCustoms(); prepopulate();
+setMode('roast');
+syncQueue(false);
+refreshServerData();
+</script>
+</body>
+</html>
