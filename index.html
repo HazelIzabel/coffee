@@ -194,7 +194,7 @@ h2.sect{
   <!-- ================= ROAST FORM ================= -->
   <form id="roastForm" autocomplete="off" onsubmit="return false">
     <div class="field"><label class="top" for="r_date">Roast date</label>
-      <input type="text" id="r_date" inputmode="numeric" placeholder="7/5 or 7/5/2026"></div>
+      <input type="text" id="r_date" inputmode="numeric" placeholder="mmddyy"></div>
 
     <div class="field"><label class="top" for="r_bean">Bean</label>
       <select id="r_bean"></select>
@@ -208,9 +208,9 @@ h2.sect{
 
     <div class="row2">
       <div class="field"><label class="top" for="r_startW">Start weight (g)</label>
-        <input type="number" id="r_startW" inputmode="decimal" step="0.1" placeholder="113.0"></div>
+        <input type="text" id="r_startW" inputmode="decimal" placeholder="113.0"></div>
       <div class="field"><label class="top" for="r_preheat">Preheat P1 (s)</label>
-        <input type="number" id="r_preheat" inputmode="numeric" placeholder="90"></div>
+        <input type="text" id="r_preheat" inputmode="numeric" placeholder="90"></div>
     </div>
 
     <div class="field">
@@ -235,7 +235,7 @@ h2.sect{
 
     <div class="row2">
       <div class="field"><label class="top" for="r_endW">End weight (g)</label>
-        <input type="number" id="r_endW" inputmode="decimal" step="0.1" placeholder="96.4"></div>
+        <input type="text" id="r_endW" inputmode="decimal" placeholder="96.4"></div>
       <div class="field"><label class="top">Weight loss</label>
         <div class="calc" id="r_loss"><b>—</b></div></div>
     </div>
@@ -243,7 +243,7 @@ h2.sect{
     <div class="field">
       <label class="top" for="r_level">Roast level (Agtron)
         <a href="https://www.coffeereview.com/roast-definitions/" target="_blank" rel="noopener">?</a></label>
-      <input type="number" id="r_level" inputmode="numeric" placeholder="45"></div>
+      <input type="text" id="r_level" inputmode="numeric" placeholder="45"></div>
 
     <div class="field"><label class="top" for="r_notes">Notes</label>
       <textarea id="r_notes" placeholder="Crack behavior, tipping, smells…"></textarea></div>
@@ -254,7 +254,7 @@ h2.sect{
   <!-- ================= ESPRESSO FORM ================= -->
   <form id="brewForm" autocomplete="off" style="display:none" onsubmit="return false">
     <div class="field"><label class="top" for="e_date">Brew date</label>
-      <input type="text" id="e_date" inputmode="numeric" placeholder="7/5 or 7/5/2026"></div>
+      <input type="text" id="e_date" inputmode="numeric" placeholder="mmddyy"></div>
 
     <div class="field"><label class="top" for="e_bean">Bean / lot</label>
       <select id="e_bean"></select>
@@ -271,21 +271,21 @@ h2.sect{
 
     <div class="row2">
       <div class="field"><label class="top" for="e_grind">Grind level</label>
-        <input type="number" id="e_grind" inputmode="numeric" placeholder="8"></div>
+        <input type="text" id="e_grind" inputmode="numeric" placeholder="8"></div>
       <div class="field"><label class="top" for="e_dose">Bean weight (g)</label>
-        <input type="number" id="e_dose" inputmode="decimal" step="0.1" placeholder="18.0"></div>
+        <input type="text" id="e_dose" inputmode="decimal" placeholder="18.0"></div>
     </div>
 
     <div class="row2">
       <div class="field"><label class="top" for="e_pre">Pre-infusion (s)</label>
-        <input type="number" id="e_pre" inputmode="numeric" placeholder="8"></div>
+        <input type="text" id="e_pre" inputmode="numeric" placeholder="8"></div>
       <div class="field"><label class="top" for="e_time">Brew time (s)</label>
-        <input type="number" id="e_time" inputmode="numeric" placeholder="28"></div>
+        <input type="text" id="e_time" inputmode="numeric" placeholder="28"></div>
     </div>
 
     <div class="row2">
       <div class="field"><label class="top" for="e_yield">Yield (g)</label>
-        <input type="number" id="e_yield" inputmode="decimal" step="0.1" placeholder="36.0"></div>
+        <input type="text" id="e_yield" inputmode="decimal" placeholder="36.0"></div>
       <div class="field"><label class="top">Ratio</label>
         <div class="calc" id="e_ratio"><b>—</b></div></div>
     </div>
@@ -311,7 +311,7 @@ h2.sect{
       <input type="text" id="e_basket" placeholder="Basket"></div>
     <div class="row2">
       <div class="field"><label class="top" for="e_spring">Spring (psi)</label>
-        <input type="number" id="e_spring" inputmode="decimal" placeholder="9"></div>
+        <input type="text" id="e_spring" inputmode="decimal" placeholder="9"></div>
       <div class="field"><label class="top">Puck screen?</label>
         <div class="chips yn" id="e_screen">
           <button type="button">Yes</button><button type="button">No</button>
@@ -329,7 +329,7 @@ h2.sect{
    CONFIG — paste your Apps Script URL here during setup,
    or set it from the ⚙︎ panel in the app (either works).
    ========================================================= */
-var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwJ0-9zao4w1XP5QIDdzEqob8O3Jb74STy5SdpW16-w9Y66bA5QyZXwvQDIt2FGPhWTyA/exec";
+var SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
 
 /* ---------- state ---------- */
 var mode = 'roast';
@@ -410,13 +410,27 @@ function $(id){ return document.getElementById(id) }
 function todayStr(){ var d=new Date(); return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear() }
 function normDate(s){
   s=(s||'').trim(); if(!s) return '';
+  // raw digits, no punctuation — the iOS numeric keypad has no "/" key,
+  // so mmdd (4) or mmddyy (6) is the expected everyday input.
+  if (/^\d+$/.test(s)){
+    if (s.length===4) s = s.slice(0,2)+'/'+s.slice(2,4);
+    else if (s.length===6) s = s.slice(0,2)+'/'+s.slice(2,4)+'/'+s.slice(4,6);
+    else if (s.length===8) s = s.slice(0,2)+'/'+s.slice(2,4)+'/'+s.slice(4,8);
+  }
   var p=s.split('/');
   if (p.length===2) p.push(new Date().getFullYear());
   if (p.length===3){
-    if (String(p[2]).length===2) p[2]='20'+p[2];
-    return parseInt(p[0],10)+'/'+('0'+parseInt(p[1],10)).slice(-2)+'/'+p[2];
+    var mm=parseInt(p[0],10), dd=parseInt(p[1],10);
+    if (!mm || !dd) return s;
+    var yy=String(p[2]);
+    if (yy.length===2) yy='20'+yy;
+    return mm+'/'+('0'+dd).slice(-2)+'/'+yy;
   }
   return s;
+}
+function todayMMDDYY(){
+  var d=new Date();
+  return ('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2)+String(d.getFullYear()).slice(-2);
 }
 function shortDate(s){ // m/d for lot numbers
   var p=normDate(s).split('/');
@@ -429,6 +443,7 @@ function normTime(s){ // "930" -> "9:30"
   return s;
 }
 function toSec(t){ var p=normTime(t).split(':'); return p.length===2 ? (+p[0])*60+(+p[1]) : NaN }
+function toNum(v){ v=(v||'').toString().trim().replace(',', '.'); var n=parseFloat(v); return isFinite(n)?n:NaN }
 function fromSec(x){ if(!isFinite(x)||x<0) return ''; return Math.floor(x/60)+':'+('0'+Math.round(x%60)).slice(-2) }
 function toast(msg){
   var t=$('toast'); t.textContent=msg; t.classList.add('show');
@@ -505,14 +520,14 @@ function calcDev(){
   return isFinite(d)&&d>=0?fromSec(d):'';
 }
 function calcLoss(){
-  var s=parseFloat($('r_startW').value), e=parseFloat($('r_endW').value);
+  var s=toNum($('r_startW').value), e=toNum($('r_endW').value);
   var ok=isFinite(s)&&isFinite(e)&&s>0;
   var pct=ok?((s-e)/s*100).toFixed(1):null;
   $('r_loss').innerHTML='<b>'+(ok?pct+'%':'—')+'</b>';
   return ok?pct:'';
 }
 function calcRatio(){
-  var d=parseFloat($('e_dose').value), y=parseFloat($('e_yield').value);
+  var d=toNum($('e_dose').value), y=toNum($('e_yield').value);
   var ok=isFinite(d)&&isFinite(y)&&d>0;
   var r=ok?'1:'+(y/d).toFixed(1):null;
   $('e_ratio').innerHTML='<b>'+(ok?r:'—')+'</b>';
@@ -730,6 +745,8 @@ function saveCfg(){
 }
 
 /* ---------- init ---------- */
+$('r_date').placeholder = todayMMDDYY();
+$('e_date').placeholder = todayMMDDYY();
 buildBeanSelects(); buildCustoms(); prepopulate();
 setMode('roast');
 syncQueue(false);
